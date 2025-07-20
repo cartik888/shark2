@@ -4,6 +4,7 @@ import (
 	"subscription-saas-backend/config"
 	"subscription-saas-backend/models"
 	"subscription-saas-backend/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -27,7 +28,7 @@ func (uc *UserController) GetDashboard(c *gin.Context) {
 	config.DB.Model(&models.Payment{}).Where("user_id = ? AND status = ?", userID, "completed").Select("COALESCE(SUM(amount), 0)").Scan(&totalPayments)
 
 	var recentPayments []models.Payment
-	config.DB.Where("user_id = ?", userID).Order("created_at DESC").Limit(5).Find(&recentPayments)
+	config.DB.Preload("Subscription.Plan").Where("user_id = ?", userID).Order("created_at DESC").Limit(5).Find(&recentPayments)
 
 	dashboardData := gin.H{
 		"user":                 user,
@@ -129,13 +130,34 @@ func (uc *UserController) BuyPlan(c *gin.Context) {
 
 	finalAmount := plan.Price - discount
 
-	// Create subscription
+	// Create subscription with proper dates
+	now := time.Now()
+	var endDate *time.Time
+
+	// Calculate end date based on plan interval
+	switch plan.Interval {
+	case "monthly":
+		endTime := now.AddDate(0, 1, 0) // Add 1 month
+		endDate = &endTime
+	case "yearly":
+		endTime := now.AddDate(1, 0, 0) // Add 1 year
+		endDate = &endTime
+	case "weekly":
+		endTime := now.AddDate(0, 0, 7) // Add 7 days
+		endDate = &endTime
+	default:
+		endTime := now.AddDate(0, 1, 0) // Default to 1 month
+		endDate = &endTime
+	}
+
 	subscription := models.Subscription{
 		UserID:          uid,
 		PlanID:          req.PlanID,
 		Status:          "active",
 		PaymentMethodID: req.PaymentMethodID,
 		AutoRenew:       true,
+		StartDate:       &now,    // Now using pointer
+		EndDate:         endDate, // Already a pointer
 	}
 
 	if err := config.DB.Create(&subscription).Error; err != nil {
@@ -195,7 +217,7 @@ func (uc *UserController) GetPlanUsage(c *gin.Context) {
 	for _, sub := range subscriptions {
 		// Get subscription key (assuming OriginalKeyID is PlanID and AssignedToUserID is userID)
 		var key models.SubscriptionKey
-		config.DB.Where("Original_key_id = ? AND assigned_to_user_id = ?", sub.PlanID, userID).First(&key)
+		config.DB.Where("original_key_id = ? AND assigned_to_user_id = ?", sub.PlanID, userID).First(&key)
 
 		usage = append(usage, gin.H{
 			"subscription": sub,
@@ -205,4 +227,98 @@ func (uc *UserController) GetPlanUsage(c *gin.Context) {
 	}
 
 	utils.SuccessResponse(c, "Plan usage retrieved successfully", usage)
+}
+
+// Get MY subscription keys after payment
+func (uc *UserController) GetMyKeys(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	// Debug: Check what's in the database
+	var debugKeys []models.SubscriptionKey
+	config.DB.Find(&debugKeys)
+
+	// Get all subscription keys for this user
+	var subscriptionKeys []models.SubscriptionKey
+	if err := config.DB.Where("assigned_to_user_id = ?", userID).Find(&subscriptionKeys).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to retrieve your keys", err)
+		return
+	}
+
+	// If no keys found, return debug info
+	if len(subscriptionKeys) == 0 {
+		utils.SuccessResponse(c, "No subscription keys found", gin.H{
+			"keys":       []gin.H{},
+			"total_keys": 0,
+			"debug_info": gin.H{
+				"user_id":          userID,
+				"total_keys_in_db": len(debugKeys),
+				"all_keys_in_db":   debugKeys,
+			},
+		})
+		return
+	}
+
+	// Get keys with plan details
+	var myKeys []gin.H
+	for _, key := range subscriptionKeys {
+		var subscription models.Subscription
+		var plan models.Plan
+
+		// Get subscription and plan details
+		config.DB.Where("user_id = ? AND plan_id = ?", userID, key.OriginalKeyID).First(&subscription)
+		config.DB.First(&plan, key.OriginalKeyID)
+
+		myKeys = append(myKeys, gin.H{
+			"key":         key.DummyKey,
+			"key_id":      key.ID,
+			"plan_name":   plan.Name,
+			"plan_price":  plan.Price,
+			"is_used":     key.IsUsed,
+			"assigned_at": key.AssignedAt,
+			"status":      subscription.Status,
+		})
+	}
+
+	utils.SuccessResponse(c, "Your subscription keys retrieved successfully", gin.H{
+		"keys":       myKeys,
+		"total_keys": len(myKeys),
+	})
+}
+
+// Get specific key by payment ID
+func (uc *UserController) GetKeyByPayment(c *gin.Context) {
+	userID, _ := c.Get("user_id")
+
+	var req struct {
+		PaymentID uint `json:"payment_id" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationErrorResponse(c, "Payment ID is required")
+		return
+	}
+
+	// Get payment details
+	var payment models.Payment
+	if err := config.DB.Preload("Subscription.Plan").Where("id = ? AND user_id = ?", req.PaymentID, userID).First(&payment).Error; err != nil {
+		utils.NotFoundResponse(c, "Payment not found")
+		return
+	}
+
+	// Get subscription key for this payment
+	var subscriptionKey models.SubscriptionKey
+	if err := config.DB.Where("original_key_id = ? AND assigned_to_user_id = ?", payment.Subscription.PlanID, userID).First(&subscriptionKey).Error; err != nil {
+		utils.NotFoundResponse(c, "Subscription key not found for this payment")
+		return
+	}
+
+	utils.SuccessResponse(c, "Your subscription key retrieved successfully", gin.H{
+		"key":          subscriptionKey.DummyKey,
+		"key_id":       subscriptionKey.ID,
+		"payment":      payment,
+		"subscription": payment.Subscription,
+		"plan":         payment.Subscription.Plan,
+		"is_used":      subscriptionKey.IsUsed,
+		"assigned_at":  subscriptionKey.AssignedAt,
+	})
 }

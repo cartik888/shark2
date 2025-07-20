@@ -4,6 +4,7 @@ import (
 	"subscription-saas-backend/config"
 	"subscription-saas-backend/models"
 	"subscription-saas-backend/utils"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -94,7 +95,6 @@ func (pc *PaymentController) GetPaymentMethods(c *gin.Context) {
 	utils.SuccessResponse(c, "Payment methods retrieved successfully", paymentMethods)
 }
 
-// UPDATED CHECKOUT ENDPOINT FOR YOUR PAYLOAD
 func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
@@ -216,7 +216,7 @@ func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 		"success_url":    req.SuccessURL,
 		"cancel_url":     req.CancelURL,
 		"status":         "pending",
-		"created_at":     utils.GetCurrentTime(),
+		"created_at":     time.Now(),
 		"metadata": gin.H{
 			"user_id":        userID,
 			"plan_id":        req.PlanID,
@@ -236,6 +236,94 @@ func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 			"reference":      checkoutID,
 			"instructions":   "Please use the checkout ID as reference when making the transfer",
 		}
+	}
+
+	// Auto-create subscription and keys for completed checkout
+	if req.PaymentMethod == "Bank Transfer" || req.PaymentMethod == "PayPal" {
+		// Create subscription immediately with proper dates
+		now := time.Now()
+		var endDate *time.Time
+
+		interval := plan.Interval
+		if interval == "" {
+			interval = "monthly" // fallback if empty
+		}
+
+		switch interval {
+		case "monthly":
+			endTime := now.AddDate(0, 1, 0)
+			endDate = &endTime
+		case "yearly":
+			endTime := now.AddDate(1, 0, 0)
+			endDate = &endTime
+		case "weekly":
+			endTime := now.AddDate(0, 0, 7)
+			endDate = &endTime
+		default:
+			endTime := now.AddDate(0, 1, 0)
+			endDate = &endTime
+		}
+
+		// Ensure StartDate and EndDate are never zero-value
+		var startDate *time.Time = &now
+		if startDate != nil && startDate.IsZero() {
+			startDate = nil
+		}
+		if endDate != nil && endDate.IsZero() {
+			endDate = nil
+		}
+
+		subscription := models.Subscription{
+			UserID:    userID.(uint),
+			PlanID:    req.PlanID,
+			Status:    "active",
+			AutoRenew: true,
+			StartDate: startDate,
+			EndDate:   endDate,
+		}
+
+		if err := config.DB.Create(&subscription).Error; err != nil {
+			utils.InternalServerErrorResponse(c, "Failed to create subscription", err)
+			return
+		}
+
+		// Create payment record
+		payment := models.Payment{
+			UserID:         userID.(uint),
+			SubscriptionID: &subscription.ID,
+			Amount:         finalAmount,
+			Currency:       currency,
+			Status:         "completed",
+			PaymentMethod:  req.PaymentMethod,
+			TransactionID:  checkoutID,
+			Description:    "Subscription payment for " + plan.Name,
+		}
+
+		if err := config.DB.Create(&payment).Error; err != nil {
+			utils.InternalServerErrorResponse(c, "Failed to create payment record", err)
+			return
+		}
+
+		// Generate subscription key
+		userIDUint := userID.(uint)
+		subscriptionKey := models.SubscriptionKey{
+			OriginalKeyID:    req.PlanID,
+			DummyKey:         checkoutID,
+			AssignedToUserID: &userIDUint,
+			IsUsed:           false,
+			AssignedAt:       &now,
+		}
+
+		if err := config.DB.Create(&subscriptionKey).Error; err != nil {
+			utils.InternalServerErrorResponse(c, "Failed to create subscription key", err)
+			return
+		}
+
+		// Add subscription and key info to checkout data
+		checkoutData["subscription"] = subscription
+		checkoutData["payment"] = payment
+		checkoutData["subscription_key"] = subscriptionKey.DummyKey
+		checkoutData["auto_activated"] = true
 	}
 
 	utils.SuccessResponse(c, "Checkout session created successfully", checkoutData)
@@ -283,12 +371,33 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 		}
 	}
 
-	// Create subscription
+	// Create subscription with proper dates
+	now := time.Now()
+	var endDate *time.Time
+
+	// Calculate end date based on plan interval
+	switch plan.Interval {
+	case "monthly":
+		endTime := now.AddDate(0, 1, 0) // Add 1 month
+		endDate = &endTime
+	case "yearly":
+		endTime := now.AddDate(1, 0, 0) // Add 1 year
+		endDate = &endTime
+	case "weekly":
+		endTime := now.AddDate(0, 0, 7) // Add 7 days
+		endDate = &endTime
+	default:
+		endTime := now.AddDate(0, 1, 0) // Default to 1 month
+		endDate = &endTime
+	}
+
 	subscription := models.Subscription{
 		UserID:    userID.(uint),
 		PlanID:    req.PlanID,
 		Status:    "active",
 		AutoRenew: true,
+		StartDate: &now,    // Now using pointer
+		EndDate:   endDate, // Already a pointer
 	}
 
 	if err := config.DB.Create(&subscription).Error; err != nil {
@@ -315,11 +424,13 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 	}
 
 	// Generate subscription key
+	userIDUint := userID.(uint)
 	subscriptionKey := models.SubscriptionKey{
-		OriginalKeyID:    plan.ID,
-		DummyKey:         utils.GenerateSubscriptionKey(userID.(uint)),
-		AssignedToUserID: &[]uint{userID.(uint)}[0],
+		OriginalKeyID:    req.PlanID,     // Use PlanID as OriginalKeyID
+		DummyKey:         req.CheckoutID, // Use the checkout_id as the key
+		AssignedToUserID: &userIDUint,
 		IsUsed:           false,
+		AssignedAt:       &now,
 	}
 
 	if err := config.DB.Create(&subscriptionKey).Error; err != nil {
@@ -331,8 +442,9 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 	config.DB.Preload("Plan").First(&subscription, subscription.ID)
 
 	utils.SuccessResponse(c, "Payment processed successfully", gin.H{
-		"subscription": subscription,
-		"payment":      payment,
-		"key":          subscriptionKey,
+		"subscription":     subscription,
+		"payment":          payment,
+		"subscription_key": subscriptionKey,
+		"key":              subscriptionKey.DummyKey,
 	})
 }

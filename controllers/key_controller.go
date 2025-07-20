@@ -115,6 +115,85 @@ func (kc *KeyController) GetUserSubscriptionKeys(c *gin.Context) {
 	utils.SuccessResponse(c, "Subscription keys retrieved successfully", subscriptionKeys)
 }
 
+// NEW: Get subscription keys by payment/subscription
+func (kc *KeyController) GetSubscriptionKeysByPayment(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	paymentID := c.Param("payment_id")
+
+	// Get payment details
+	var payment models.Payment
+	if err := config.DB.Preload("Subscription.Plan").Where("id = ? AND user_id = ?", paymentID, userID).First(&payment).Error; err != nil {
+		utils.NotFoundResponse(c, "Payment not found")
+		return
+	}
+
+	// Get subscription keys for this subscription
+	var subscriptionKeys []models.SubscriptionKey
+	if err := config.DB.Preload("OriginalKey").Where("original_key_id = ? AND assigned_to_user_id = ?", payment.Subscription.PlanID, userID).Find(&subscriptionKeys).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to fetch subscription keys", err)
+		return
+	}
+
+	utils.SuccessResponse(c, "Subscription keys retrieved successfully", gin.H{
+		"payment":           payment,
+		"subscription":      payment.Subscription,
+		"subscription_keys": subscriptionKeys,
+	})
+}
+
+// NEW: Get subscription key by checkout ID
+func (kc *KeyController) GetSubscriptionKeyByCheckout(c *gin.Context) {
+	userID := c.GetUint("user_id")
+	checkoutID := c.Param("checkout_id")
+
+	// Find subscription key by checkout ID (dummy_key)
+	var subscriptionKey models.SubscriptionKey
+	if err := config.DB.Preload("OriginalKey").Preload("AssignedToUser").Where("dummy_key = ? AND assigned_to_user_id = ?", checkoutID, userID).First(&subscriptionKey).Error; err != nil {
+		utils.NotFoundResponse(c, "Subscription key not found for this checkout")
+		return
+	}
+
+	// Get related subscription and payment
+	var subscription models.Subscription
+	var payment models.Payment
+
+	config.DB.Preload("Plan").Where("user_id = ? AND plan_id = ?", userID, subscriptionKey.OriginalKeyID).First(&subscription)
+	config.DB.Where("user_id = ? AND subscription_id = ?", userID, subscription.ID).First(&payment)
+
+	utils.SuccessResponse(c, "Subscription key retrieved successfully", gin.H{
+		"subscription_key": subscriptionKey,
+		"subscription":     subscription,
+		"payment":          payment,
+		"status":           "active",
+	})
+}
+
+// NEW: Get all user's active subscription keys
+func (kc *KeyController) GetActiveSubscriptionKeys(c *gin.Context) {
+	userID := c.GetUint("user_id")
+
+	var subscriptionKeys []models.SubscriptionKey
+	if err := config.DB.Preload("OriginalKey").Preload("AssignedToUser").Where("assigned_to_user_id = ? AND is_used = ?", userID, false).Find(&subscriptionKeys).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to fetch active subscription keys", err)
+		return
+	}
+
+	// Get related subscriptions for each key
+	var result []gin.H
+	for _, key := range subscriptionKeys {
+		var subscription models.Subscription
+		config.DB.Preload("Plan").Where("user_id = ? AND plan_id = ? AND status = ?", userID, key.OriginalKeyID, "active").First(&subscription)
+
+		result = append(result, gin.H{
+			"subscription_key": key,
+			"subscription":     subscription,
+			"plan":             subscription.Plan,
+		})
+	}
+
+	utils.SuccessResponse(c, "Active subscription keys retrieved successfully", result)
+}
+
 func (kc *KeyController) ValidateSubscriptionKey(c *gin.Context) {
 	var req ValidateKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

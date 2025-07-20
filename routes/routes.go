@@ -53,15 +53,26 @@ func SetupRoutes(router *gin.Engine) {
 		protected.POST("/user/buy-plan", userController.BuyPlan)
 		protected.GET("/user/plan-usage", userController.GetPlanUsage)
 
+		// NEW: Get MY keys after payment
+		protected.GET("/user/my-keys", userController.GetMyKeys)
+		protected.POST("/user/key-by-payment", userController.GetKeyByPayment)
+
 		// Payment routes
 		protected.GET("/payments", paymentController.GetPayments)
 		protected.GET("/payments/:id", paymentController.GetPayment)
 		protected.POST("/payment-methods", paymentController.CreatePaymentMethod)
 		protected.GET("/payment-methods", paymentController.GetPaymentMethods)
 
-		// NEW CHECKOUT ROUTES
+		// Checkout routes
 		protected.POST("/payments/checkout", paymentController.CreateCheckout)
 		protected.POST("/payments/process", paymentController.ProcessCheckout)
+
+		// Subscription Key routes
+		protected.GET("/subscription-keys", keyController.GetUserSubscriptionKeys)
+		protected.GET("/subscription-keys/active", keyController.GetActiveSubscriptionKeys)
+		protected.GET("/subscription-keys/payment/:payment_id", keyController.GetSubscriptionKeysByPayment)
+		protected.GET("/subscription-keys/checkout/:checkout_id", keyController.GetSubscriptionKeyByCheckout)
+		protected.POST("/subscription-keys/use", keyController.UseSubscriptionKey)
 	}
 
 	// Admin routes (admin authentication required)
