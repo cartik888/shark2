@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=root
+      - DB_PASSWORD=rootpassword
+      - DB_NAME=shark_saas
+      - JWT_SECRET=your-super-secret-jwt-key-here
+      - GIN_MODE=debug
+    depends_on:
+      - mysql
+    volumes:
+      - .:/app
+    networks:
+      - shark-network
+
+  mysql:
+    image: mysql:8.0
+    environment:
+      - MYSQL_ROOT_PASSWORD=rootpassword
+      - MYSQL_DATABASE=shark_saas
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - shark-network
+
+volumes:
+  mysql_data:
+
+networks:
+  shark-network:
+    driver: bridge
