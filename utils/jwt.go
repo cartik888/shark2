@@ -17,12 +17,12 @@ type Claims struct {
 }
 
 func GenerateToken(userID uint, email, role string, isAdmin bool) (string, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "your-default-secret-key"
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "your-secret-key-change-in-production"
 	}
 
-	claims := &Claims{
+	claims := Claims{
 		UserID:  userID,
 		Email:   email,
 		Role:    role,
@@ -34,17 +34,17 @@ func GenerateToken(userID uint, email, role string, isAdmin bool) (string, error
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	return token.SignedString([]byte(secret))
+	return token.SignedString([]byte(jwtSecret))
 }
 
 func ValidateToken(tokenString string) (*Claims, error) {
-	secret := os.Getenv("JWT_SECRET")
-	if secret == "" {
-		secret = "your-default-secret-key"
+	jwtSecret := os.Getenv("JWT_SECRET")
+	if jwtSecret == "" {
+		jwtSecret = "your-secret-key-change-in-production"
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
-		return []byte(secret), nil
+		return []byte(jwtSecret), nil
 	})
 
 	if err != nil {

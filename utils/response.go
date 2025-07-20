@@ -6,62 +6,49 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type Response struct {
+type APIResponse struct {
 	Success bool        `json:"success"`
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
-	Error   string      `json:"error,omitempty"`
+	Error   interface{} `json:"error,omitempty"`
 }
 
 func SuccessResponse(c *gin.Context, message string, data interface{}) {
-	c.JSON(http.StatusOK, Response{
+	c.JSON(http.StatusOK, APIResponse{
 		Success: true,
 		Message: message,
 		Data:    data,
 	})
 }
 
-func ErrorResponse(c *gin.Context, statusCode int, message string, err error) {
-	response := Response{
+func ErrorResponse(c *gin.Context, statusCode int, message string, err interface{}) {
+	c.JSON(statusCode, APIResponse{
 		Success: false,
 		Message: message,
-	}
-
-	if err != nil {
-		response.Error = err.Error()
-	}
-
-	c.JSON(statusCode, response)
+		Error:   err,
+	})
 }
 
 func ValidationErrorResponse(c *gin.Context, message string) {
-	c.JSON(http.StatusBadRequest, Response{
-		Success: false,
-		Message: message,
-	})
+	ErrorResponse(c, http.StatusBadRequest, message, nil)
 }
 
 func UnauthorizedResponse(c *gin.Context, message string) {
-	c.JSON(http.StatusUnauthorized, Response{
-		Success: false,
-		Message: message,
-	})
+	ErrorResponse(c, http.StatusUnauthorized, message, nil)
 }
 
 func ForbiddenResponse(c *gin.Context, message string) {
-	c.JSON(http.StatusForbidden, Response{
-		Success: false,
-		Message: message,
-	})
+	ErrorResponse(c, http.StatusForbidden, message, nil)
 }
 
 func NotFoundResponse(c *gin.Context, message string) {
-	c.JSON(http.StatusNotFound, Response{
-		Success: false,
-		Message: message,
-	})
+	ErrorResponse(c, http.StatusNotFound, message, nil)
 }
 
 func InternalServerErrorResponse(c *gin.Context, message string, err error) {
-	ErrorResponse(c, http.StatusInternalServerError, message, err)
+	var errorDetail interface{}
+	if err != nil {
+		errorDetail = err.Error()
+	}
+	ErrorResponse(c, http.StatusInternalServerError, message, errorDetail)
 }

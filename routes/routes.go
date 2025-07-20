@@ -53,11 +53,15 @@ func SetupRoutes(router *gin.Engine) {
 		protected.POST("/user/buy-plan", userController.BuyPlan)
 		protected.GET("/user/plan-usage", userController.GetPlanUsage)
 
-		// Payment methods
+		// Payment routes
 		protected.GET("/payments", paymentController.GetPayments)
 		protected.GET("/payments/:id", paymentController.GetPayment)
 		protected.POST("/payment-methods", paymentController.CreatePaymentMethod)
 		protected.GET("/payment-methods", paymentController.GetPaymentMethods)
+
+		// NEW CHECKOUT ROUTES
+		protected.POST("/payments/checkout", paymentController.CreateCheckout)
+		protected.POST("/payments/process", paymentController.ProcessCheckout)
 	}
 
 	// Admin routes (admin authentication required)
