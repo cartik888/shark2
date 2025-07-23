@@ -25,6 +25,9 @@ func SetupRoutes(router *gin.Engine) {
 		// Authentication routes
 		public.POST("/auth/login", authController.Login)
 		public.POST("/auth/register", authController.Register)
+		// Google OAuth login
+		googleAuthController := &controllers.GoogleAuthController{}
+		public.POST("/auth/google", googleAuthController.GoogleLogin)
 
 		// Public subscription routes
 		public.GET("/plans", subscriptionController.GetPlans)
