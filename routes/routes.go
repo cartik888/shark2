@@ -37,6 +37,7 @@ func SetupRoutes(router *gin.Engine) {
 		public.POST("/keys/validate", subscriptionController.ValidateKey)
 		public.POST("/keys/validate-cred", keyController.ValidateCredKey)
 		public.POST("/keys/validate-subscription", keyController.ValidateSubscriptionKey)
+		public.POST("/keys/check-subscription", keyController.CheckSubscriptionKey)
 	}
 
 	// Protected routes (authentication required)
@@ -91,6 +92,7 @@ func SetupRoutes(router *gin.Engine) {
 		admin.GET("/users/:id", adminController.GetUser)
 		admin.POST("/users/:id/block", adminController.BlockUser)
 		admin.POST("/users/:id/unblock", adminController.UnblockUser)
+		admin.DELETE("/users/:id", adminController.DeleteUser)
 
 		// Credential key management
 		admin.GET("/cred-keys", adminController.GetCredKeys)

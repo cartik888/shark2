@@ -10,6 +10,9 @@ import (
 )
 
 type KeyController struct{}
+type CheckSubscriptionKeyRequest struct {
+	SubscriptionKey string `json:"subscriptionkey" binding:"required"`
+}
 
 type ValidateKeyRequest struct {
 	KeyValue string `json:"key_value" binding:"required"`
@@ -195,29 +198,28 @@ func (kc *KeyController) GetActiveSubscriptionKeys(c *gin.Context) {
 }
 
 func (kc *KeyController) ValidateSubscriptionKey(c *gin.Context) {
-	var req ValidateKeyRequest
+}
+
+// Simple subscription key check API (no JWT, minimal response)
+func (kc *KeyController) CheckSubscriptionKey(c *gin.Context) {
+	var req CheckSubscriptionKeyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		utils.ValidationErrorResponse(c, "Invalid request data")
 		return
 	}
 
 	var subscriptionKey models.SubscriptionKey
-	if err := config.DB.Preload("OriginalKey").Preload("AssignedToUser").Where("dummy_key = ?", req.KeyValue).First(&subscriptionKey).Error; err != nil {
-		utils.ValidationErrorResponse(c, "Invalid subscription key")
+	if err := config.DB.Where("dummy_key = ?", req.SubscriptionKey).First(&subscriptionKey).Error; err != nil {
+		c.JSON(200, gin.H{
+			"success": false,
+			"message": "User not found",
+		})
 		return
 	}
 
-	// Check if key is already used
-	if subscriptionKey.IsUsed {
-		utils.ValidationErrorResponse(c, "Subscription key has already been used")
-		return
-	}
-
-	utils.SuccessResponse(c, "Subscription key is valid", gin.H{
-		"key_type":    subscriptionKey.OriginalKey.KeyType,
-		"description": subscriptionKey.OriginalKey.Description,
-		"assigned_to": subscriptionKey.AssignedToUser.Email,
-		"assigned_at": subscriptionKey.AssignedAt,
+	c.JSON(200, gin.H{
+		"success": true,
+		"message": "Verification successfully done",
 	})
 }
 

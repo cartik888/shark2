@@ -10,6 +10,45 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ...existing code...
+
+// DeleteUser deletes a user by ID
+func (ac *AdminController) DeleteUser(c *gin.Context) {
+	userID := c.Param("id")
+	if userID == "" {
+		utils.ValidationErrorResponse(c, "User ID is required")
+		return
+	}
+
+	// Convert userID to uint
+	uid, err := strconv.ParseUint(userID, 10, 64)
+	if err != nil {
+		utils.ValidationErrorResponse(c, "Invalid user ID")
+		return
+	}
+
+	// Prevent admin from deleting themselves
+	currentUser, exists := c.Get("user")
+	if exists {
+		if u, ok := currentUser.(*models.User); ok && u != nil && u.ID == uint(uid) {
+			utils.ValidationErrorResponse(c, "You cannot delete your own account")
+			return
+		}
+	}
+
+	// Delete user and related profile
+	if err := config.DB.Delete(&models.User{}, uid).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to delete user", err)
+		return
+	}
+	if err := config.DB.Where("user_id = ?", uid).Delete(&models.UserProfile{}).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to delete user profile", err)
+		return
+	}
+
+	utils.SuccessResponse(c, "User deleted successfully", nil)
+}
+
 type AdminController struct{}
 
 func (ac *AdminController) GetDashboard(c *gin.Context) {
