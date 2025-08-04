@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"context"
 	"subscription-saas-backend/config"
 	"subscription-saas-backend/models"
 	"subscription-saas-backend/utils"
@@ -115,7 +116,35 @@ func (kc *KeyController) GetUserSubscriptionKeys(c *gin.Context) {
 		return
 	}
 
-	utils.SuccessResponse(c, "Subscription keys retrieved successfully", subscriptionKeys)
+	var keysWithDuration []gin.H
+	for _, key := range subscriptionKeys {
+		duration := 0
+		var userIDForKey uint = 0
+		if key.AssignedToUserID != nil {
+			userIDForKey = *key.AssignedToUserID
+		}
+		if userIDForKey != 0 {
+			if d, err := utils.GetUserTimeFromFirestore(context.Background(), userIDForKey); err == nil {
+				duration = d
+			}
+		}
+		keysWithDuration = append(keysWithDuration, gin.H{
+			"assigned_at":      key.AssignedAt,
+			"is_used":          key.IsUsed,
+			"key":              key.DummyKey,
+			"key_id":           key.ID,
+			"plan_name":        "", // No plan name in CredKey, leave blank or fetch from Plan if available
+			"plan_price":       0,  // No price in CredKey, leave 0 or fetch from Plan if available
+			"status":           "active",
+			"duration_seconds": duration,
+		})
+	}
+
+	response := gin.H{
+		"keys":       keysWithDuration,
+		"total_keys": len(keysWithDuration),
+	}
+	utils.SuccessResponse(c, "Your subscription keys retrieved successfully", response)
 }
 
 // NEW: Get subscription keys by payment/subscription
@@ -217,9 +246,24 @@ func (kc *KeyController) CheckSubscriptionKey(c *gin.Context) {
 		return
 	}
 
+	// Get usage for this key and user
+	var usage models.SubscriptionKeyUsage
+	remaining := subscriptionKey.Duration
+	if subscriptionKey.AssignedToUserID != nil {
+		err := config.DB.Where("subscription_key_id = ? AND user_id = ?", subscriptionKey.ID, *subscriptionKey.AssignedToUserID).First(&usage).Error
+		if err == nil {
+			if usage.UsedMinutes < subscriptionKey.Duration {
+				remaining = subscriptionKey.Duration - usage.UsedMinutes
+			} else {
+				remaining = 0
+			}
+		}
+	}
 	c.JSON(200, gin.H{
-		"success": true,
-		"message": "Verification successfully done",
+		"success":            true,
+		"message":            "Verification successfully done",
+		"duration":           subscriptionKey.Duration,
+		"remaining_duration": remaining,
 	})
 }
 

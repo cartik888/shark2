@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"subscription-saas-backend/config"
 	"subscription-saas-backend/models"
 	"subscription-saas-backend/utils"
@@ -318,6 +319,17 @@ func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 			utils.InternalServerErrorResponse(c, "Failed to create subscription key", err)
 			return
 		}
+		// Sync to Firestore
+		usage := models.SubscriptionKeyUsage{
+			SubscriptionKeyID: subscriptionKey.ID,
+			UserID:            userID.(uint),
+			UsedMinutes:       40,
+			LastUsedAt:        nil,
+			SubscriptionKey:   subscriptionKey,
+		}
+		if err := usage.SyncToFirestore(); err != nil {
+			log.Printf("Firestore sync error: %v", err)
+		}
 
 		// Add subscription and key info to checkout data
 		checkoutData["subscription"] = subscription
@@ -436,6 +448,17 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 	if err := config.DB.Create(&subscriptionKey).Error; err != nil {
 		utils.InternalServerErrorResponse(c, "Failed to create subscription key", err)
 		return
+	}
+	// Sync to Firestore
+	usage := models.SubscriptionKeyUsage{
+		SubscriptionKeyID: subscriptionKey.ID,
+		UserID:            userID.(uint),
+		UsedMinutes:       40,
+		LastUsedAt:        nil,
+		SubscriptionKey:   subscriptionKey,
+	}
+	if err := usage.SyncToFirestore(); err != nil {
+		log.Printf("Firestore sync error: %v", err)
 	}
 
 	// Load subscription with plan

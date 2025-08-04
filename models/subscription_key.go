@@ -15,4 +15,5 @@ type SubscriptionKey struct {
 	// Relationships
 	OriginalKey    CredKey `json:"original_key" gorm:"foreignKey:OriginalKeyID;constraint:OnDelete:CASCADE"`
 	AssignedToUser *User   `json:"assigned_to_user,omitempty" gorm:"foreignKey:AssignedToUserID;constraint:OnDelete:SET NULL"`
+	Duration       uint    `json:"duration" gorm:"not null;default:0"` // Duration in minutes
 }

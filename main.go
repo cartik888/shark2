@@ -6,6 +6,7 @@ import (
 	"subscription-saas-backend/config"
 	"subscription-saas-backend/models"
 	"subscription-saas-backend/routes"
+	"subscription-saas-backend/utils"
 
 	"github.com/joho/godotenv"
 
@@ -29,6 +30,11 @@ func main() {
 	// Auto-migrate database tables
 	if err := autoMigrate(); err != nil {
 		log.Fatal("Failed to migrate database:", err)
+	}
+
+	// Initialize Firestore
+	if err := utils.InitFirestore("hive-five-465116"); err != nil {
+		log.Fatal("Failed to initialize Firestore:", err)
 	}
 
 	// Initialize Gin router
