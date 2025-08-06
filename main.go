@@ -42,9 +42,24 @@ func main() {
 
 	// CORS middleware
 	router.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1:5173"},
+		AllowOriginFunc: func(origin string) bool {
+			allowed := []string{
+				"http://localhost:3000",
+				"http://localhost:8080",
+				"http://localhost:5173/",
+				"http://127.0.0.1:3000",
+				"http://127.0.0.1:8080",
+				"http://127.0.0.1:5173",
+			}
+			for _, o := range allowed {
+				if o == origin {
+					return true
+				}
+			}
+			return false
+		},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization"},
+		AllowHeaders:     []string{"Origin", "Content-Type", "Authorization", "Accept", "X-Requested-With"},
 		ExposeHeaders:    []string{"Content-Length"},
 		AllowCredentials: true,
 	}))

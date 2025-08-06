@@ -26,6 +26,15 @@ func GenerateSubscriptionKey(userID uint) string {
 	return fmt.Sprintf("SUB-%d-%d-%s", userID, timestamp, randomHex)
 }
 
+// GenerateUniqueSubscriptionKey generates a secure, unique key for a subscription/payment
+func GenerateUniqueSubscriptionKey(paymentID uint, userID uint) string {
+	timestamp := time.Now().Unix()
+	randomBytes := make([]byte, 16)
+	rand.Read(randomBytes)
+	randomHex := hex.EncodeToString(randomBytes)
+	return fmt.Sprintf("SUBPAY-%d-%d-%d-%s", paymentID, userID, timestamp, randomHex)
+}
+
 func getKeyPrefix(keyType string) string {
 	switch keyType {
 	case "trial":

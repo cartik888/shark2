@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 )
 
 type PaymentController struct{}
@@ -288,7 +289,8 @@ func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 			return
 		}
 
-		// Create payment record
+		// Create payment record with a unique transaction ID
+		transactionID := uuid.New().String()
 		payment := models.Payment{
 			UserID:         userID.(uint),
 			SubscriptionID: &subscription.ID,
@@ -296,7 +298,7 @@ func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 			Currency:       currency,
 			Status:         "completed",
 			PaymentMethod:  req.PaymentMethod,
-			TransactionID:  checkoutID,
+			TransactionID:  transactionID,
 			Description:    "Subscription payment for " + plan.Name,
 		}
 
@@ -305,11 +307,12 @@ func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 			return
 		}
 
-		// Generate subscription key
+		// Generate a unique subscription key using payment ID and user ID
 		userIDUint := userID.(uint)
+		realSubscriptionKey := utils.GenerateUniqueSubscriptionKey(payment.ID, userIDUint)
 		subscriptionKey := models.SubscriptionKey{
 			OriginalKeyID:    req.PlanID,
-			DummyKey:         checkoutID,
+			DummyKey:         realSubscriptionKey,
 			AssignedToUserID: &userIDUint,
 			IsUsed:           false,
 			AssignedAt:       &now,
@@ -322,7 +325,7 @@ func (pc *PaymentController) CreateCheckout(c *gin.Context) {
 		// Sync to Firestore
 		usage := models.SubscriptionKeyUsage{
 			SubscriptionKeyID: subscriptionKey.ID,
-			UserID:            userID.(uint),
+			UserID:            userIDUint,
 			UsedMinutes:       40,
 			LastUsedAt:        nil,
 			SubscriptionKey:   subscriptionKey,
@@ -417,7 +420,8 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 		return
 	}
 
-	// Create payment record
+	// Create payment record with a unique transaction ID
+	transactionID := uuid.New().String()
 	payment := models.Payment{
 		UserID:          userID.(uint),
 		SubscriptionID:  &subscription.ID,
@@ -425,7 +429,7 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 		Currency:        req.Currency,
 		Status:          req.Status,
 		PaymentMethod:   req.PaymentMethod,
-		TransactionID:   req.TransactionID,
+		TransactionID:   transactionID,
 		StripePaymentID: req.StripePaymentID,
 		Description:     "Subscription payment for " + plan.Name,
 	}
@@ -435,11 +439,12 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 		return
 	}
 
-	// Generate subscription key
+	// Generate a unique subscription key using payment ID and user ID
 	userIDUint := userID.(uint)
+	realSubscriptionKey := utils.GenerateUniqueSubscriptionKey(payment.ID, userIDUint)
 	subscriptionKey := models.SubscriptionKey{
-		OriginalKeyID:    req.PlanID,     // Use PlanID as OriginalKeyID
-		DummyKey:         req.CheckoutID, // Use the checkout_id as the key
+		OriginalKeyID:    req.PlanID,
+		DummyKey:         realSubscriptionKey,
 		AssignedToUserID: &userIDUint,
 		IsUsed:           false,
 		AssignedAt:       &now,
@@ -452,7 +457,7 @@ func (pc *PaymentController) ProcessCheckout(c *gin.Context) {
 	// Sync to Firestore
 	usage := models.SubscriptionKeyUsage{
 		SubscriptionKeyID: subscriptionKey.ID,
-		UserID:            userID.(uint),
+		UserID:            userIDUint,
 		UsedMinutes:       40,
 		LastUsedAt:        nil,
 		SubscriptionKey:   subscriptionKey,

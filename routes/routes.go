@@ -15,7 +15,7 @@ func SetupRoutes(router *gin.Engine) {
 	paymentController := &controllers.PaymentController{}
 	keyController := &controllers.KeyController{}
 	adminController := &controllers.AdminController{}
-
+	sac := &controllers.ServiceAccountController{}
 	// API v1 routes
 	v1 := router.Group("/api/v1")
 
@@ -39,7 +39,9 @@ func SetupRoutes(router *gin.Engine) {
 		public.POST("/keys/validate-subscription", keyController.ValidateSubscriptionKey)
 		public.POST("/keys/check-subscription", keyController.CheckSubscriptionKey)
 	}
-
+	public.POST("/service-account", sac.Store)
+	public.GET("/service-account", sac.GetAll)
+	public.GET("/service-account/encrypted", sac.GetAllEncrypted)
 	// Protected routes (authentication required)
 	protected := v1.Group("/")
 	protected.Use(middlewares.AuthMiddleware())
