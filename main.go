@@ -25,7 +25,7 @@ func main() {
 	}
 
 	// Connect to database
-	config.ConnectDatabase()
+	config.ConnectDB()
 
 	// Auto-migrate database tables
 	if err := autoMigrate(); err != nil {
