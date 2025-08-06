@@ -1,50 +1,34 @@
 package config
 
 import (
+	"database/sql"
 	"fmt"
-	"log"
 	"os"
 
-	"gorm.io/driver/mysql"
-	"gorm.io/gorm"
+	_ "github.com/go-sql-driver/mysql"
 )
 
-var DB *gorm.DB
+var DB *sql.DB
 
-func ConnectDatabase() {
+func ConnectDB() {
 	host := os.Getenv("DB_HOST")
-	if host == "" {
-		host = "localhost"
-	}
-
 	port := os.Getenv("DB_PORT")
-	if port == "" {
-		port = "3306"
-	}
-
 	user := os.Getenv("DB_USER")
-	if user == "" {
-		user = "root"
-	}
+	pass := os.Getenv("DB_PASSWORD")
+	name := os.Getenv("DB_NAME")
 
-	password := os.Getenv("DB_PASSWORD")
-	if password == "" {
-		password = "Shubham@123"
-	}
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true", user, pass, host, port, name)
 
-	dbname := os.Getenv("DB_NAME")
-	if dbname == "" {
-		dbname = "shark_saas"
-	}
-
-	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
-		user, password, host, port, dbname)
-
-	database, err := gorm.Open(mysql.Open(dsn), &gorm.Config{})
+	var err error
+	DB, err = sql.Open("mysql", dsn)
 	if err != nil {
-		log.Fatal("Failed to connect to database:", err)
+		panic("Database connection failed: " + err.Error())
 	}
 
-	DB = database
-	log.Println("✅ Database connected successfully")
+	err = DB.Ping()
+	if err != nil {
+		panic("DB ping failed: " + err.Error())
+	}
+
+	fmt.Println("✅ Connected to GCP MySQL successfully!")
 }
