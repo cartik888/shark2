@@ -32,7 +32,7 @@ func (gc *GoogleAuthController) GoogleLogin(c *gin.Context) {
 		return
 	}
 
-	payload, err := idtoken.Validate(context.Background(), req.IdToken, "55308792729-o7ifngca382s8rels0d1iusmuuklj9sb.apps.googleusercontent.com")
+	payload, err := idtoken.Validate(context.Background(), req.IdToken, "640272669858-t932ehi78sj46h2r29esfh3ej3r6dk90.apps.googleusercontent.com")
 	if err != nil {
 		utils.UnauthorizedResponse(c, "Invalid Google token")
 		return
