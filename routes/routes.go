@@ -15,6 +15,7 @@ func SetupRoutes(router *gin.Engine) {
 	paymentController := &controllers.PaymentController{}
 	keyController := &controllers.KeyController{}
 	adminController := &controllers.AdminController{}
+	otpController := &controllers.OTPController{}
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
@@ -28,6 +29,10 @@ func SetupRoutes(router *gin.Engine) {
 		// Google OAuth login
 		googleAuthController := &controllers.GoogleAuthController{}
 		public.POST("/auth/google", googleAuthController.GoogleLogin)
+
+		// OTP routes
+		public.POST("/send-otp", otpController.SendOTP)
+		public.POST("/verify-otp", otpController.VerifyOTP)
 
 		// Public subscription routes
 		public.GET("/plans", subscriptionController.GetPlans)
