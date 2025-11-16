@@ -2,8 +2,8 @@ package models
 
 import (
 	"math/rand"
-	"time"
 	"subscription-saas-backend/config"
+	"time"
 )
 
 // GenerateOTP creates a 6-digit OTP, stores it in the database, and returns it

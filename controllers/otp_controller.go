@@ -1,10 +1,11 @@
 package controllers
 
 import (
-    "net/http"
-    "subscription-saas-backend/utils"
-    "subscription-saas-backend/models"
-    "github.com/gin-gonic/gin"
+	"net/http"
+	"subscription-saas-backend/models"
+	"subscription-saas-backend/utils"
+
+	"github.com/gin-gonic/gin"
 )
 
 type OTPController struct{}
