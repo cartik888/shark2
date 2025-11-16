@@ -1,10 +1,10 @@
 package controllers
 
 import (
-	"net/http"
-	"subscription-saas-backend/utils"
-
-	"github.com/gin-gonic/gin"
+    "net/http"
+    "subscription-saas-backend/utils"
+    "subscription-saas-backend/models"
+    "github.com/gin-gonic/gin"
 )
 
 type OTPController struct{}
@@ -26,7 +26,7 @@ func (o *OTPController) SendOTP(c *gin.Context) {
 		return
 	}
 
-	otp := utils.GenerateOTP(req.Email, 5)
+	otp := models.GenerateOTP(req.Email, 5)
 
 	// 🚀 Send OTP in background (non-blocking)
 	go func() {
@@ -48,7 +48,7 @@ func (o *OTPController) VerifyOTP(c *gin.Context) {
 		return
 	}
 
-	if utils.VerifyOTP(req.Email, req.OTP) {
+	if models.VerifyOTP(req.Email, req.OTP) {
 		utils.SuccessResponse(c, "OTP verified successfully", nil)
 	} else {
 		utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid or expired OTP", nil)

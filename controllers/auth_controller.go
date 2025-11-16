@@ -140,6 +140,56 @@ func (ac *AuthController) Register(c *gin.Context) {
 	})
 }
 
+type ResetPasswordRequest struct {
+	Email           string `json:"email" binding:"required,email"`
+	OTP             string `json:"otp" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required,min=6"`
+	ConfirmPassword string `json:"confirm_password" binding:"required,min=6"`
+}
+
+// POST /api/v1/auth/reset-password
+func (ac *AuthController) ResetPassword(c *gin.Context) {
+	var req ResetPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		utils.ValidationErrorResponse(c, "Invalid request data")
+		return
+	}
+
+	if req.NewPassword != req.ConfirmPassword {
+		utils.ValidationErrorResponse(c, "Passwords do not match")
+		return
+	}
+
+	// Verify OTP
+	if !models.VerifyOTP(req.Email, req.OTP) {
+		utils.ErrorResponse(c, http.StatusUnauthorized, "Invalid or expired OTP", nil)
+		return
+	}
+
+	// Find user
+	var user models.User
+	if err := config.DB.Where("email = ?", req.Email).First(&user).Error; err != nil {
+		utils.NotFoundResponse(c, "User not found")
+		return
+	}
+
+	// Hash new password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to hash password", err)
+		return
+	}
+
+	user.Password = string(hashedPassword)
+	if err := config.DB.Save(&user).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to update password", err)
+		return
+	}
+
+	// Mark OTP as used after successful password reset
+	models.MarkOTPUsed(req.Email, req.OTP)
+	utils.SuccessResponse(c, "Password reset successful", nil)
+}
 func (ac *AuthController) GetProfile(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 

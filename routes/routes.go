@@ -34,6 +34,9 @@ func SetupRoutes(router *gin.Engine) {
 		public.POST("/send-otp", otpController.SendOTP)
 		public.POST("/verify-otp", otpController.VerifyOTP)
 
+		// Forgot password reset
+		public.POST("/auth/reset-password", authController.ResetPassword)
+
 		// Public subscription routes
 		public.GET("/plans", subscriptionController.GetPlans)
 		public.GET("/plans/:id", subscriptionController.GetPlan)
