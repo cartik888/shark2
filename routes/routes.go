@@ -16,6 +16,7 @@ func SetupRoutes(router *gin.Engine) {
 	keyController := &controllers.KeyController{}
 	adminController := &controllers.AdminController{}
 	otpController := &controllers.OTPController{}
+	razorpayController := &controllers.RazorpayController{}
 
 	// API v1 routes
 	v1 := router.Group("/api/v1")
@@ -78,6 +79,11 @@ func SetupRoutes(router *gin.Engine) {
 		// Checkout routes
 		protected.POST("/payments/checkout", paymentController.CreateCheckout)
 		protected.POST("/payments/process", paymentController.ProcessCheckout)
+
+		// Razorpay order creation
+		protected.POST("/payments/razorpay/order", razorpayController.CreateOrder)
+		// Razorpay payment verification
+		protected.POST("/payments/razorpay/verify", razorpayController.VerifyPayment)
 
 		// Subscription Key routes
 		protected.GET("/subscription-keys", keyController.GetUserSubscriptionKeys)

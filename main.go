@@ -27,6 +27,9 @@ func main() {
 	// Connect to database
 	config.ConnectDatabase()
 
+	// Load Razorpay config
+	config.LoadRazorpayConfig()
+
 	// Auto-migrate database tables
 	if err := autoMigrate(); err != nil {
 		log.Fatal("Failed to migrate database:", err)
