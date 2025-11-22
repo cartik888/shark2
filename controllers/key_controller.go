@@ -1,7 +1,6 @@
 package controllers
 
 import (
-	"context"
 	"subscription-saas-backend/config"
 	"subscription-saas-backend/models"
 	"subscription-saas-backend/utils"
@@ -124,7 +123,7 @@ func (kc *KeyController) GetUserSubscriptionKeys(c *gin.Context) {
 			userIDForKey = *key.AssignedToUserID
 		}
 		if userIDForKey != 0 {
-			if d, err := utils.GetUserTimeFromFirestore(context.Background(), userIDForKey); err == nil {
+			if d, err := utils.GetUserTimeFromFirestore(userIDForKey); err == nil {
 				duration = d
 			}
 		}

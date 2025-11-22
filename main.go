@@ -15,35 +15,57 @@ import (
 )
 
 func main() {
-	// Load .env file
+
+	// ----------------------------------------------------------
+	// 1. Force Service Account Credential for Datastore
+	// ----------------------------------------------------------
+	os.Setenv("GOOGLE_APPLICATION_CREDENTIALS", "C:/secrets/serviceAccount.json")
+
+	// (Optional) Debug: Print active service account
+	/*
+		creds, _ := google.FindDefaultCredentials(context.Background())
+		log.Println("ACTIVE SERVICE ACCOUNT:", creds)
+	*/
+
+	// ----------------------------------------------------------
+	// 2. Load .env file
+	// ----------------------------------------------------------
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found or error loading .env file (this is OK if running in production with real env vars)")
-	}
-	// Load environment variables
-	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, using system environment variables")
+		log.Println("No .env file found, using system env variables")
 	}
 
-	// Connect to database
+	// ----------------------------------------------------------
+	// 3. Connect Database
+	// ----------------------------------------------------------
 	config.ConnectDatabase()
 
-	// Load Razorpay config
+	// ----------------------------------------------------------
+	// 4. Load Razorpay Config
+	// ----------------------------------------------------------
 	config.LoadRazorpayConfig()
 
-	// Auto-migrate database tables
+	// ----------------------------------------------------------
+	// 5. Auto-Migrate all DB tables
+	// ----------------------------------------------------------
 	if err := autoMigrate(); err != nil {
 		log.Fatal("Failed to migrate database:", err)
 	}
 
-	// Initialize Firestore
-	if err := utils.InitFirestore("hive-five-465116"); err != nil {
-		log.Fatal("Failed to initialize Firestore:", err)
+	// ----------------------------------------------------------
+	// 6. Initialize Google Datastore with CORRECT Project ID
+	// ----------------------------------------------------------
+	if err := utils.InitDatastore("hive-five-475221"); err != nil {
+		log.Fatal("Failed to initialize Datastore:", err)
 	}
 
-	// Initialize Gin router
+	// ----------------------------------------------------------
+	// 7. Create Gin app
+	// ----------------------------------------------------------
 	router := gin.Default()
 
-	// CORS middleware
+	// ----------------------------------------------------------
+	// 8. CORS settings
+	// ----------------------------------------------------------
 	router.Use(cors.New(cors.Config{
 		AllowOrigins:     []string{"http://localhost:3000", "http://localhost:8080", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:8080", "http://127.0.0.1:5173"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
@@ -52,10 +74,14 @@ func main() {
 		AllowCredentials: true,
 	}))
 
-	// Setup routes
+	// ----------------------------------------------------------
+	// 9. Setup routes
+	// ----------------------------------------------------------
 	routes.SetupRoutes(router)
 
-	// Get port from environment or default to 8080
+	// ----------------------------------------------------------
+	// 10. Start Server
+	// ----------------------------------------------------------
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
@@ -65,6 +91,7 @@ func main() {
 	log.Fatal(router.Run(":" + port))
 }
 
+// Auto-migration
 func autoMigrate() error {
 	return config.DB.AutoMigrate(
 		&models.User{},
