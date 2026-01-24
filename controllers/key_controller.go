@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"log"
 	"subscription-saas-backend/config"
 	"subscription-saas-backend/models"
 	"subscription-saas-backend/utils"
@@ -109,24 +110,31 @@ func (kc *KeyController) UseCredKey(c *gin.Context) {
 func (kc *KeyController) GetUserSubscriptionKeys(c *gin.Context) {
 	userID := c.GetUint("user_id")
 
+	startDB := time.Now()
 	var subscriptionKeys []models.SubscriptionKey
 	if err := config.DB.Preload("OriginalKey").Preload("AssignedToUser").Where("assigned_to_user_id = ?", userID).Find(&subscriptionKeys).Error; err != nil {
 		utils.InternalServerErrorResponse(c, "Failed to fetch subscription keys", err)
 		return
 	}
+	log.Printf("DB query for subscription keys took %v", time.Since(startDB))
 
 	var keysWithDuration []gin.H
+	// Only fetch Firestore duration once per user
+	var duration int
+	var userIDForKey uint = 0
+	if len(subscriptionKeys) > 0 && subscriptionKeys[0].AssignedToUserID != nil {
+		userIDForKey = *subscriptionKeys[0].AssignedToUserID
+		startFS := time.Now()
+		d, err := utils.GetUserTimeFromFirestore(userIDForKey)
+		if err != nil {
+			log.Printf("Firestore timeout or error for user_id %d: %v", userIDForKey, err)
+			duration = 0 // fallback value
+		} else {
+			duration = d
+		}
+		log.Printf("Firestore call for user_id %d took %v", userIDForKey, time.Since(startFS))
+	}
 	for _, key := range subscriptionKeys {
-		duration := 0
-		var userIDForKey uint = 0
-		if key.AssignedToUserID != nil {
-			userIDForKey = *key.AssignedToUserID
-		}
-		if userIDForKey != 0 {
-			if d, err := utils.GetUserTimeFromFirestore(userIDForKey); err == nil {
-				duration = d
-			}
-		}
 		keysWithDuration = append(keysWithDuration, gin.H{
 			"assigned_at":      key.AssignedAt,
 			"is_used":          key.IsUsed,

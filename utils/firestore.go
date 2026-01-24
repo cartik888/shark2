@@ -41,17 +41,51 @@ func SetUserSubscription(userID string, secondsLeft int64, subscriptionKey strin
 		return ErrDatastoreNotInitialized
 	}
 
-	type UserTime struct {
+	type Subscription struct {
 		SecondsLeft     int64  `datastore:"seconds_left"`
 		SubscriptionKey string `datastore:"subscription_key"`
 	}
+	type UserSubscriptions struct {
+		SubscriptionKeys []Subscription `datastore:"subscription_keys"`
+	}
 
 	key := datastore.NameKey("user_times", userID, nil)
-	_, err := client.Put(context.Background(), key, &UserTime{
+	var userSubs UserSubscriptions
+	err := client.Get(context.Background(), key, &userSubs)
+	if err != nil {
+		// Handle legacy record with single subscription_key field
+		if err.Error() == "datastore: cannot load field \"subscription_key\" into a \"utils.UserSubscriptions\": no such struct field" {
+			// Try to load legacy struct
+			type LegacyUserTime struct {
+				SecondsLeft     int64  `datastore:"seconds_left"`
+				SubscriptionKey string `datastore:"subscription_key"`
+			}
+			var legacy LegacyUserTime
+			errLegacy := client.Get(context.Background(), key, &legacy)
+			if errLegacy == nil {
+				// Migrate legacy data to new array format
+				userSubs.SubscriptionKeys = append(userSubs.SubscriptionKeys, Subscription{
+					SecondsLeft:     legacy.SecondsLeft,
+					SubscriptionKey: legacy.SubscriptionKey,
+				})
+			} else {
+				log.Printf("[ERROR] Datastore legacy read failed: %v", errLegacy)
+				return errLegacy
+			}
+		} else if err != datastore.ErrNoSuchEntity {
+			log.Printf("[ERROR] Datastore read failed: %v", err)
+			return err
+		}
+	}
+
+	// Append new subscription
+	newSub := Subscription{
 		SecondsLeft:     secondsLeft,
 		SubscriptionKey: subscriptionKey,
-	})
+	}
+	userSubs.SubscriptionKeys = append(userSubs.SubscriptionKeys, newSub)
 
+	_, err = client.Put(context.Background(), key, &userSubs)
 	if err != nil {
 		log.Printf("[ERROR] Datastore write failed: %v", err)
 		return err
@@ -68,16 +102,31 @@ func GetUserTimeFromDatastore(ctx context.Context, userID uint) (int, error) {
 
 	key := datastore.NameKey("user_times", fmt.Sprint(userID), nil)
 
-	var data struct {
+	// Try new schema first
+	type Subscription struct {
+		SecondsLeft     int64  `datastore:"seconds_left"`
+		SubscriptionKey string `datastore:"subscription_key"`
+	}
+	type UserSubscriptions struct {
+		SubscriptionKeys []Subscription `datastore:"subscription_keys"`
+	}
+	var userSubs UserSubscriptions
+	err := client.Get(ctx, key, &userSubs)
+	if err == nil && len(userSubs.SubscriptionKeys) > 0 {
+		// Return the latest subscription's seconds_left
+		latest := userSubs.SubscriptionKeys[len(userSubs.SubscriptionKeys)-1]
+		return int(latest.SecondsLeft), nil
+	}
+
+	// Fallback to legacy schema
+	var legacy struct {
 		SecondsLeft int64 `datastore:"seconds_left"`
 	}
-
-	err := client.Get(ctx, key, &data)
-	if err != nil {
-		return 0, err
+	errLegacy := client.Get(ctx, key, &legacy)
+	if errLegacy != nil {
+		return 0, errLegacy
 	}
-
-	return int(data.SecondsLeft), nil
+	return int(legacy.SecondsLeft), nil
 }
 
 var ErrDatastoreNotInitialized = &DatastoreError{"Datastore client not initialized"}
