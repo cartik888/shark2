@@ -111,14 +111,46 @@ func (rc *RazorpayController) VerifyPayment(c *gin.Context) {
 		return
 	}
 
-	// 4. Generate subscription key
+	// 4. Generate or find a cred_key for this user/plan
+	var credKey models.CredKey
+	err := config.DB.Where("key_type = ? AND is_active = ?", "activation", true).First(&credKey).Error
+	if err != nil {
+		// If not found, create one
+		credKey = models.CredKey{
+			KeyValue:    utils.GenerateCredKey("activation"),
+			KeyType:     "activation",
+			Description: "Auto-generated activation key",
+			IsActive:    true,
+			MaxUses:     1,
+			CurrentUses: 0,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+		}
+		if err := config.DB.Create(&credKey).Error; err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to auto-create cred_key"})
+			return
+		}
+	}
+
+	// Set duration based on plan interval
+	var duration uint = 43200 // default 1 month in minutes
+	switch plan.Interval {
+	case "monthly":
+		duration = 43200
+	case "yearly":
+		duration = 525600
+	case "weekly":
+		duration = 10080
+	}
+
 	key := utils.GenerateSubscriptionKey(userID.(uint))
 	subscriptionKey := models.SubscriptionKey{
-		OriginalKeyID:    req.PlanID,
+		OriginalKeyID:    credKey.ID,
 		DummyKey:         key,
 		AssignedToUserID: new(uint),
 		IsUsed:           false,
 		AssignedAt:       &now,
+		Duration:         duration,
 	}
 	*subscriptionKey.AssignedToUserID = userID.(uint)
 	if err := config.DB.Create(&subscriptionKey).Error; err != nil {

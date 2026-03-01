@@ -1,0 +1,319 @@
+{
+  "info": {
+    "name": "Admin Dashboard APIs",
+    "description": "Admin Dashboard APIs for SaaS Backend - Total Users, Active Subscriptions, Monthly Revenue, User Growth",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Admin Dashboard",
+      "item": [
+        {
+          "name": "1. Get Total Users",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/total-users",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "total-users"
+              ]
+            },
+            "description": "Get total active platform users\n\nReturns:\n- total_users: Total number of users\n- active_users: Users who are active and not blocked\n- inactive_users: Blocked or inactive users"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/dashboard/total-users",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "total-users"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Total users retrieved successfully\",\n  \"data\": {\n    \"total_users\": 1250,\n    \"active_users\": 980,\n    \"inactive_users\": 270\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "2. Get Active Subscriptions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/active-subscriptions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "active-subscriptions"
+              ]
+            },
+            "description": "Get active subscriptions and paying customers\n\nReturns:\n- active_subscriptions: Number of active subscriptions\n- total_subscriptions: Total subscriptions in system\n- paying_customers: Number of customers with active subscriptions\n- total_revenue: Total revenue from active paying customers"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/dashboard/active-subscriptions",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "active-subscriptions"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Active subscriptions retrieved successfully\",\n  \"data\": {\n    \"active_subscriptions\": 520,\n    \"total_subscriptions\": 850,\n    \"paying_customers\": 520,\n    \"total_revenue\": 52500.00\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "3. Get Monthly Revenue",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/monthly-revenue",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "monthly-revenue"
+              ]
+            },
+            "description": "Get monthly revenue with comparison to last month\n\nReturns:\n- current_month: Current month in YYYY-MM format\n- current_revenue: Revenue for current month\n- previous_month: Previous month in YYYY-MM format\n- previous_revenue: Revenue for previous month\n- revenue_difference: Absolute difference\n- percentage_change: Percentage change (positive = increase)\n- trend: \"up\" or \"down\""
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/dashboard/monthly-revenue",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "monthly-revenue"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"Monthly revenue retrieved successfully\",\n  \"data\": {\n    \"current_month\": \"2026-01\",\n    \"current_revenue\": 15750.50,\n    \"previous_month\": \"2025-12\",\n    \"previous_revenue\": 12300.00,\n    \"revenue_difference\": 3450.50,\n    \"percentage_change\": 28.05,\n    \"trend\": \"up\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "4. Get User Growth",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}",
+                "type": "text"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/admin/dashboard/user-growth",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "admin",
+                "dashboard",
+                "user-growth"
+              ]
+            },
+            "description": "Get user growth data - new registrations by month for last 12 months\n\nReturns:\n- total_users: Total users on platform\n- current_month_new: New users registered in current month\n- growth_by_month: Array of monthly registration data\n  - month: Month in YYYY-MM format\n  - new_users: Number of new users registered\n- last_updated: Timestamp of data retrieval"
+          },
+          "response": [
+            {
+              "name": "Success Response",
+              "originalRequest": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{auth_token}}",
+                    "type": "text"
+                  }
+                ],
+                "url": {
+                  "raw": "{{base_url}}/admin/dashboard/user-growth",
+                  "host": [
+                    "{{base_url}}"
+                  ],
+                  "path": [
+                    "admin",
+                    "dashboard",
+                    "user-growth"
+                  ]
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"status\": \"success\",\n  \"message\": \"User growth data retrieved successfully\",\n  \"data\": {\n    \"total_users\": 1250,\n    \"current_month_new\": 85,\n    \"growth_by_month\": [\n      {\n        \"month\": \"2025-02\",\n        \"new_users\": 45\n      },\n      {\n        \"month\": \"2025-03\",\n        \"new_users\": 62\n      },\n      {\n        \"month\": \"2025-04\",\n        \"new_users\": 78\n      },\n      {\n        \"month\": \"2026-01\",\n        \"new_users\": 85\n      }\n    ],\n    \"last_updated\": \"2026-01-25T10:30:00Z\"\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login (Get Auth Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Login to get authentication token\n\nCopy the token from the response and paste it in the auth_token variable"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080/api/v1",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "your_jwt_token_here",
+      "type": "string"
+    }
+  ]
+}

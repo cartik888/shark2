@@ -101,6 +101,12 @@ func SetupRoutes(router *gin.Engine) {
 		// Admin dashboard
 		admin.GET("/dashboard", adminController.GetDashboard)
 
+		// New dashboard metrics
+		admin.GET("/dashboard/total-users", adminController.GetTotalUsers)
+		admin.GET("/dashboard/active-subscriptions", adminController.GetActiveSubscriptions)
+		admin.GET("/dashboard/monthly-revenue", adminController.GetMonthlyRevenue)
+		admin.GET("/dashboard/user-growth", adminController.GetUserGrowth)
+
 		// User management
 		admin.GET("/users", adminController.GetUsers)
 		admin.GET("/users/:id", adminController.GetUser)

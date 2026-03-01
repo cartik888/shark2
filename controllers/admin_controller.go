@@ -365,3 +365,164 @@ func (ac *AdminController) GetSupportTickets(c *gin.Context) {
 
 	utils.SuccessResponse(c, "Support tickets retrieved successfully", tickets)
 }
+
+// GetTotalUsers returns total active platform users
+func (ac *AdminController) GetTotalUsers(c *gin.Context) {
+	var totalUsers, activeUsers, inactiveUsers int64
+
+	// Get total users
+	if err := config.DB.Model(&models.User{}).Count(&totalUsers).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get total users", err)
+		return
+	}
+
+	// Get active users
+	if err := config.DB.Model(&models.User{}).Where("is_active = ? AND is_blocked = ?", true, false).Count(&activeUsers).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get active users", err)
+		return
+	}
+
+	// Get inactive users
+	if err := config.DB.Model(&models.User{}).Where("is_active = ? OR is_blocked = ?", false, true).Count(&inactiveUsers).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get inactive users", err)
+		return
+	}
+
+	utils.SuccessResponse(c, "Total users retrieved successfully", gin.H{
+		"total_users":    totalUsers,
+		"active_users":   activeUsers,
+		"inactive_users": inactiveUsers,
+	})
+}
+
+// GetActiveSubscriptions returns active paying customers
+func (ac *AdminController) GetActiveSubscriptions(c *gin.Context) {
+	var activeSubscriptions, totalSubscriptions int64
+	var totalPayingRevenue float64
+
+	// Get total subscriptions
+	if err := config.DB.Model(&models.Subscription{}).Count(&totalSubscriptions).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get total subscriptions", err)
+		return
+	}
+
+	// Get active subscriptions
+	if err := config.DB.Model(&models.Subscription{}).Where("status = ?", "active").Count(&activeSubscriptions).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get active subscriptions", err)
+		return
+	}
+
+	// Get total revenue from active subscriptions
+	if err := config.DB.Model(&models.Payment{}).
+		Joins("JOIN subscriptions ON payments.subscription_id = subscriptions.id").
+		Where("payments.status = ? AND subscriptions.status = ?", "completed", "active").
+		Select("COALESCE(SUM(payments.amount), 0)").
+		Scan(&totalPayingRevenue).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get revenue", err)
+		return
+	}
+
+	utils.SuccessResponse(c, "Active subscriptions retrieved successfully", gin.H{
+		"active_subscriptions": activeSubscriptions,
+		"total_subscriptions":  totalSubscriptions,
+		"paying_customers":     activeSubscriptions,
+		"total_revenue":        totalPayingRevenue,
+	})
+}
+
+// GetMonthlyRevenue returns monthly revenue with comparison to last month
+func (ac *AdminController) GetMonthlyRevenue(c *gin.Context) {
+	currentMonth := time.Now()
+	currentMonthStart := time.Date(currentMonth.Year(), currentMonth.Month(), 1, 0, 0, 0, 0, currentMonth.Location())
+	currentMonthEnd := currentMonthStart.AddDate(0, 1, 0)
+
+	previousMonthStart := currentMonthStart.AddDate(0, -1, 0)
+	previousMonthEnd := currentMonthStart
+
+	var currentMonthRevenue, previousMonthRevenue float64
+
+	// Get current month revenue
+	if err := config.DB.Model(&models.Payment{}).
+		Where("status = ? AND created_at >= ? AND created_at < ?", "completed", currentMonthStart, currentMonthEnd).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&currentMonthRevenue).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get current month revenue", err)
+		return
+	}
+
+	// Get previous month revenue
+	if err := config.DB.Model(&models.Payment{}).
+		Where("status = ? AND created_at >= ? AND created_at < ?", "completed", previousMonthStart, previousMonthEnd).
+		Select("COALESCE(SUM(amount), 0)").
+		Scan(&previousMonthRevenue).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get previous month revenue", err)
+		return
+	}
+
+	// Calculate percentage change
+	var percentageChange float64
+	if previousMonthRevenue > 0 {
+		percentageChange = ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100
+	} else if currentMonthRevenue > 0 {
+		percentageChange = 100
+	}
+
+	utils.SuccessResponse(c, "Monthly revenue retrieved successfully", gin.H{
+		"current_month":      currentMonthStart.Format("2006-01"),
+		"current_revenue":    currentMonthRevenue,
+		"previous_month":     previousMonthStart.Format("2006-01"),
+		"previous_revenue":   previousMonthRevenue,
+		"revenue_difference": currentMonthRevenue - previousMonthRevenue,
+		"percentage_change":  percentageChange,
+		"trend":              map[bool]string{true: "up", false: "down"}[currentMonthRevenue >= previousMonthRevenue],
+	})
+}
+
+// GetUserGrowth returns new user registrations grouped by month
+func (ac *AdminController) GetUserGrowth(c *gin.Context) {
+	// Get the last 12 months of user registrations
+	type UserGrowthData struct {
+		Month    string
+		NewUsers int64
+	}
+
+	var growthData []UserGrowthData
+
+	// Query to get user registrations by month for the last 12 months (MySQL compatible)
+	if err := config.DB.Model(&models.User{}).
+		Where("created_at >= DATE_SUB(NOW(), INTERVAL 12 MONTH)").
+		Select("DATE_FORMAT(created_at, '%Y-%m') as month, COUNT(*) as new_users").
+		Group("DATE_FORMAT(created_at, '%Y-%m')").
+		Order("month ASC").
+		Scan(&growthData).Error; err != nil {
+		utils.InternalServerErrorResponse(c, "Failed to get user growth data", err)
+		return
+	}
+
+	// Convert to gin.H format
+	var formattedGrowthData []gin.H
+	for _, item := range growthData {
+		formattedGrowthData = append(formattedGrowthData, gin.H{
+			"month":     item.Month,
+			"new_users": item.NewUsers,
+		})
+	}
+
+	// Get total user count
+	var totalUsers int64
+	config.DB.Model(&models.User{}).Count(&totalUsers)
+
+	// Get current month new users
+	currentMonthStart := time.Date(time.Now().Year(), time.Now().Month(), 1, 0, 0, 0, 0, time.Now().Location())
+	var currentMonthNewUsers int64
+	config.DB.Model(&models.User{}).
+		Where("created_at >= ?", currentMonthStart).
+		Count(&currentMonthNewUsers)
+
+	utils.SuccessResponse(c, "User growth data retrieved successfully", gin.H{
+		"total_users":       totalUsers,
+		"current_month_new": currentMonthNewUsers,
+		"growth_by_month":   formattedGrowthData,
+		"last_updated":      time.Now(),
+	})
+}
