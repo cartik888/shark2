@@ -18,11 +18,23 @@ type LoginRequest struct {
 }
 
 type RegisterRequest struct {
-	Email     string `json:"email" binding:"required,email"`
-	Password  string `json:"password" binding:"required,min=6"`
-	FirstName string `json:"first_name"`
-	LastName  string `json:"last_name"`
-	Company   string `json:"company"`
+	Email      string `json:"email" binding:"required,email"`
+	Password   string `json:"password" binding:"required,min=6"`
+	FirstName  string `json:"first_name"`
+	LastName   string `json:"last_name"`
+	Bio        string `json:"bio"`
+	JobTitle   string `json:"job_title"`
+	Company    string `json:"company"`
+	Phone      string `json:"phone"`
+	Address    string `json:"address"`
+	City       string `json:"city"`
+	State      string `json:"state"`
+	Country    string `json:"country"`
+	ZipCode    string `json:"zip_code"`
+	Website    string `json:"website"`
+	Resume     string `json:"resume"`
+	Avatar     string `json:"avatar"`
+	CoverImage string `json:"cover_image"`
 }
 
 type AuthResponse struct {
@@ -113,10 +125,22 @@ func (ac *AuthController) Register(c *gin.Context) {
 
 	// Create user profile
 	profile := models.UserProfile{
-		UserID:    user.ID,
-		FirstName: req.FirstName,
-		LastName:  req.LastName,
-		Company:   req.Company,
+		UserID:     user.ID,
+		FirstName:  req.FirstName,
+		LastName:   req.LastName,
+		Bio:        req.Bio,
+		JobTitle:   req.JobTitle,
+		Company:    req.Company,
+		Phone:      req.Phone,
+		Address:    req.Address,
+		City:       req.City,
+		State:      req.State,
+		Country:    req.Country,
+		ZipCode:    req.ZipCode,
+		Website:    req.Website,
+		Resume:     req.Resume,
+		Avatar:     req.Avatar,
+		CoverImage: req.CoverImage,
 	}
 
 	if err := config.DB.Create(&profile).Error; err != nil {
@@ -206,15 +230,21 @@ func (ac *AuthController) UpdateProfile(c *gin.Context) {
 	userID, _ := c.Get("user_id")
 
 	var req struct {
-		FirstName string `json:"first_name"`
-		LastName  string `json:"last_name"`
-		Company   string `json:"company"`
-		Phone     string `json:"phone"`
-		Address   string `json:"address"`
-		City      string `json:"city"`
-		State     string `json:"state"`
-		Country   string `json:"country"`
-		ZipCode   string `json:"zip_code"`
+		FirstName  string `json:"first_name"`
+		LastName   string `json:"last_name"`
+		Bio        string `json:"bio"`
+		JobTitle   string `json:"job_title"`
+		Company    string `json:"company"`
+		Phone      string `json:"phone"`
+		Address    string `json:"address"`
+		City       string `json:"city"`
+		State      string `json:"state"`
+		Country    string `json:"country"`
+		ZipCode    string `json:"zip_code"`
+		Website    string `json:"website"`
+		Resume     string `json:"resume"`
+		Avatar     string `json:"avatar"`
+		CoverImage string `json:"cover_image"`
 	}
 
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -231,6 +261,8 @@ func (ac *AuthController) UpdateProfile(c *gin.Context) {
 	// Update profile
 	profile.FirstName = req.FirstName
 	profile.LastName = req.LastName
+	profile.Bio = req.Bio
+	profile.JobTitle = req.JobTitle
 	profile.Company = req.Company
 	profile.Phone = req.Phone
 	profile.Address = req.Address
@@ -238,6 +270,10 @@ func (ac *AuthController) UpdateProfile(c *gin.Context) {
 	profile.State = req.State
 	profile.Country = req.Country
 	profile.ZipCode = req.ZipCode
+	profile.Website = req.Website
+	profile.Resume = req.Resume
+	profile.Avatar = req.Avatar
+	profile.CoverImage = req.CoverImage
 
 	if err := config.DB.Save(&profile).Error; err != nil {
 		utils.InternalServerErrorResponse(c, "Failed to update profile", err)

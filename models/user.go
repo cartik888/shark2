@@ -26,20 +26,25 @@ type User struct {
 }
 
 type UserProfile struct {
-	ID        uint      `json:"id" gorm:"primaryKey"`
-	UserID    uint      `json:"user_id" gorm:"not null"`
-	FirstName string    `json:"first_name"`
-	LastName  string    `json:"last_name"`
-	Company   string    `json:"company"`
-	Phone     string    `json:"phone"`
-	Address   string    `json:"address"`
-	City      string    `json:"city"`
-	State     string    `json:"state"`
-	Country   string    `json:"country"`
-	ZipCode   string    `json:"zip_code"`
-	Avatar    string    `json:"avatar"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID          uint           `json:"id" gorm:"primaryKey"`
+	UserID      uint           `json:"user_id" gorm:"not null"`
+	FirstName   string         `json:"first_name"`
+	LastName    string         `json:"last_name"`
+	Bio         string         `json:"bio"`
+	JobTitle    string         `json:"job_title"`
+	Company     string         `json:"company"`
+	Phone       string         `json:"phone"`
+	Address     string         `json:"address"`
+	City        string         `json:"city"`
+	State       string         `json:"state"`
+	Country     string         `json:"country"`
+	ZipCode     string         `json:"zip_code"`
+	Website     string         `json:"website"`
+	Resume      string         `json:"resume"`
+	Avatar      string         `json:"avatar"`
+	CoverImage  string         `json:"cover_image"`
+	CreatedAt   time.Time      `json:"created_at"`
+	UpdatedAt   time.Time      `json:"updated_at"`
 
 	// Relationships
 	User *User `json:"-" gorm:"foreignKey:UserID"`
